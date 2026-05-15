@@ -128,8 +128,24 @@ async function main(): Promise<void> {
       startListener();
       break;
 
+    case 'start': {
+      const PIPELINE_INTERVAL_MS = 4 * 60 * 60 * 1000; // 4 hours
+      console.log('[start] Starting Telegram listener...');
+      startListener();
+      console.log('[start] Running initial pipeline...');
+      await runPipeline();
+      console.log(`[start] Pipeline will run again every 4 hours`);
+      setInterval(async () => {
+        console.log(`[start] Scheduled pipeline run at ${new Date().toISOString()}`);
+        await runPipeline().catch((err) =>
+          console.error('[start] Pipeline error:', err)
+        );
+      }, PIPELINE_INTERVAL_MS);
+      break;
+    }
+
     default:
-      console.log('Usage: npx ts-node src/orchestrator.ts [scout|pipeline|listen|dev]');
+      console.log('Usage: npx ts-node src/orchestrator.ts [scout|pipeline|listen|dev|start]');
       process.exit(1);
   }
 }
