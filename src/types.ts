@@ -40,25 +40,12 @@ export interface Draft {
   draftedAt: string;
 }
 
-export interface PostedReply {
-  postId: string;
-  commentId: string;
-  subreddit: string;
-  text: string;
-  postedAt: string;
-}
-
 export interface Feedback {
   postId: string;
   subreddit: string;
   draft: string;
   reason: string;
   rejectedAt: string;
-}
-
-export interface RateLimitState {
-  lastPostTimestamp: number;
-  subredditLastPost: Record<string, number>;
 }
 
 export const TARGET_SUBREDDITS = [
@@ -88,6 +75,4 @@ export const MAX_POST_AGE_HOURS = 48;
 export const MIN_POST_SCORE = 0;
 export const MIN_AUTHOR_KARMA = 50;
 export const MIN_AUTHOR_AGE_DAYS = 7;
-export const RATE_LIMIT_MS = 30 * 60 * 1000; // 30 minutes between posts
-export const SUBREDDIT_COOLDOWN_MS = 24 * 60 * 60 * 1000; // 1 post per sub per day
 export const SCOUT_DELAY_MS = 2000; // 2s between subreddit fetches

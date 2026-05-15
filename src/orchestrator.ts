@@ -3,15 +3,14 @@ dotenv.config();
 
 import { scout } from './scout';
 import { classifyPosts } from './classifier';
-import { draftReplies } from './drafter';
+import { draftReply, draftReplies } from './drafter';
 import {
   sendDraftForReview,
   sendFlagForReview,
   registerDraft,
-  listenForApprovals,
+  listenForCommands,
 } from './telegram-review';
-import { postReply } from './poster';
-import { Draft } from './types';
+import { ClassifiedPost, Draft } from './types';
 
 async function runPipeline(): Promise<void> {
   console.log('\n========================================');
@@ -70,36 +69,45 @@ async function runPipeline(): Promise<void> {
     }
   }
 
-  console.log(`[pipeline] ${drafts.length} drafts sent for review`);
-  console.log('[pipeline] Waiting for Telegram approvals...\n');
+  console.log(`[pipeline] Pipeline complete. ${drafts.length} drafts sent for review.\n`);
 }
 
 function startListener(): void {
-  console.log('[listener] Starting Telegram approval listener...');
+  console.log('[listener] Starting Telegram listener...');
 
-  listenForApprovals(
-    // onApprove
-    async (postId: string, subreddit: string, text: string) => {
-      console.log(`[listener] Approved: ${postId} (r/${subreddit})`);
+  listenForCommands(
+    // onRedo: regenerate draft with different angle
+    async (_postId: string, oldDraft: Draft) => {
+      console.log(`[listener] REDO requested for: ${oldDraft.title}`);
       try {
-        await postReply(postId, subreddit, text);
-        console.log(`[listener] Posted successfully: ${postId}`);
+        const classified: ClassifiedPost = {
+          post: {
+            id: oldDraft.postId,
+            title: oldDraft.title,
+            selftext: '',
+            url: `https://www.reddit.com${oldDraft.url}`,
+            subreddit: oldDraft.subreddit,
+            score: oldDraft.score,
+            num_comments: oldDraft.numComments,
+            author: 'unknown',
+            created_utc: Date.now() / 1000,
+            permalink: oldDraft.url,
+          },
+          classification: {
+            decision: 'ANSWER',
+            reason: 'REDO requested by reviewer',
+            topic: oldDraft.topic,
+            pixii_relevance: oldDraft.pixiiRelevance,
+          },
+          classifiedAt: new Date().toISOString(),
+        };
+
+        const newDraft = await draftReply(classified, true);
+        registerDraft(newDraft);
+        await sendDraftForReview(newDraft);
+        console.log(`[listener] New draft sent for: ${oldDraft.postId}`);
       } catch (err) {
-        console.error(`[listener] Failed to post ${postId}:`, err);
-      }
-    },
-    // onReject
-    async (postId: string, reason: string) => {
-      console.log(`[listener] Rejected: ${postId} - ${reason}`);
-    },
-    // onEdit
-    async (postId: string, subreddit: string, newText: string) => {
-      console.log(`[listener] Edited and posting: ${postId} (r/${subreddit})`);
-      try {
-        await postReply(postId, subreddit, newText);
-        console.log(`[listener] Posted edited version: ${postId}`);
-      } catch (err) {
-        console.error(`[listener] Failed to post edited ${postId}:`, err);
+        console.error(`[listener] REDO failed for ${oldDraft.postId}:`, err);
       }
     }
   );

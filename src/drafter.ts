@@ -7,6 +7,7 @@ const PROMPTS_DIR = path.resolve(__dirname, '..', 'prompts');
 const WIKI_DIR = path.resolve(__dirname, '..', 'wiki');
 const EXAMPLES_DIR = path.resolve(__dirname, '..', 'examples');
 const DRAFTS_DIR = path.resolve(__dirname, '..', 'data', 'drafts');
+const FEEDBACK_DIR = path.resolve(__dirname, '..', 'data', 'feedback');
 
 function readFile(filePath: string): string {
   return fs.readFileSync(filePath, 'utf-8');
@@ -85,11 +86,40 @@ function findRelevantWikiEntries(topic: string): string[] {
   return entries;
 }
 
-function buildDrafterPrompt(classified: ClassifiedPost, wikiEntries: string[]): string {
+function loadRecentFeedback(): string {
+  if (!fs.existsSync(FEEDBACK_DIR)) return '';
+
+  const files = fs.readdirSync(FEEDBACK_DIR)
+    .filter(f => f.endsWith('.json'))
+    .sort()
+    .slice(-10);
+
+  if (files.length === 0) return '';
+
+  const lessons = files.map(f => {
+    try {
+      const data = JSON.parse(fs.readFileSync(path.join(FEEDBACK_DIR, f), 'utf-8'));
+      return `REJECTED: "${(data.draft || '').substring(0, 100)}..."
+REASON: ${data.reason}`;
+    } catch {
+      return '';
+    }
+  }).filter(Boolean).join('\n\n');
+
+  if (!lessons) return '';
+  return `\n\n## PAST MISTAKES TO AVOID\n\nThese drafts were rejected by the human reviewer. Do NOT repeat these patterns:\n\n${lessons}`;
+}
+
+function buildDrafterPrompt(classified: ClassifiedPost, wikiEntries: string[], differentAngle: boolean = false): string {
   const drafterRules = readFile(path.join(PROMPTS_DIR, 'answer-drafter.md'));
   const voiceRules = readFile(path.join(PROMPTS_DIR, 'voice-rules.md'));
   const goodExamples = readFile(path.join(EXAMPLES_DIR, 'good-answers.md'));
+  const feedbackMemory = loadRecentFeedback();
   const post = classified.post;
+
+  const angleInstruction = differentAngle
+    ? '\n\nIMPORTANT: The previous draft for this post was rejected. Write a COMPLETELY DIFFERENT angle. Use different opening, different structure, different Pixii mention strategy. Do not repeat anything from the previous attempt.\n'
+    : '';
 
   return `${drafterRules}
 
@@ -107,7 +137,7 @@ ${goodExamples}
 
 ## Relevant Pixii Wiki Knowledge (ONLY cite facts from here)
 
-${wikiEntries.join('\n\n---\n\n')}
+${wikiEntries.join('\n\n---\n\n')}${feedbackMemory}
 
 ---
 
@@ -119,7 +149,7 @@ Body: ${post.selftext || '(no body text)'}
 Score: ${post.score}
 Comments: ${post.num_comments}
 Topic (from classifier): ${classified.classification.topic}
-Pixii relevance: ${classified.classification.pixii_relevance}
+Pixii relevance: ${classified.classification.pixii_relevance}${angleInstruction}
 
 Write a Reddit reply following the rules above. Output ONLY the reply text, no preamble, no explanation. Just the reply as it would appear on Reddit.`;
 }
@@ -130,17 +160,18 @@ function saveDraft(draft: Draft): void {
   fs.writeFileSync(path.join(DRAFTS_DIR, filename), JSON.stringify(draft, null, 2));
 }
 
-export async function draftReply(classified: ClassifiedPost): Promise<Draft> {
+export async function draftReply(classified: ClassifiedPost, differentAngle: boolean = false): Promise<Draft> {
   const client = new Anthropic();
   const post = classified.post;
   const topic = classified.classification.topic;
 
-  console.log(`[drafter] Drafting reply for: "${post.title}" (topic: ${topic})`);
+  console.log(`[drafter] Drafting reply for: "${post.title}" (topic: ${topic})${differentAngle ? ' [REDO - different angle]' : ''}`);
 
   const wikiEntries = findRelevantWikiEntries(topic);
-  console.log(`[drafter] Loaded ${wikiEntries.length} wiki entries for context`);
+  const feedbackCount = loadRecentFeedback() ? 'yes' : 'none';
+  console.log(`[drafter] Loaded ${wikiEntries.length} wiki entries | feedback memory: ${feedbackCount}`);
 
-  const prompt = buildDrafterPrompt(classified, wikiEntries);
+  const prompt = buildDrafterPrompt(classified, wikiEntries, differentAngle);
 
   const response = await client.messages.create({
     model: 'claude-sonnet-4-6',
