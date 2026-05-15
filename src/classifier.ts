@@ -66,7 +66,7 @@ export async function classifyPost(post: RedditPost): Promise<ClassifiedPost> {
   console.log(`[classifier] Classifying: "${post.title}" (r/${post.subreddit})`);
 
   const response = await client.messages.create({
-    model: 'claude-sonnet-4-6',
+    model: 'claude-haiku-3-5-20241022',
     max_tokens: 256,
     messages: [
       {
