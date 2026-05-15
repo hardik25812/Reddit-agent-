@@ -1,0 +1,27 @@
+{
+  "name": "pixii-reddit-agent",
+  "version": "1.0.0",
+  "description": "Pixii Reddit Marketing Agent - monitors Amazon seller subreddits, drafts helpful replies mentioning Pixii, sends to Telegram for approval, posts to Reddit",
+  "main": "dist/orchestrator.js",
+  "scripts": {
+    "build": "tsc",
+    "scout": "npx ts-node src/orchestrator.ts scout",
+    "pipeline": "npx ts-node src/orchestrator.ts pipeline",
+    "listen": "npx ts-node src/orchestrator.ts listen",
+    "dev": "npx ts-node src/orchestrator.ts dev"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
+    "dotenv": "^16.4.7",
+    "snoowrap": "^1.23.0",
+    "telegraf": "^4.16.3"
+  },
+  "devDependencies": {
+    "@types/node": "^20.17.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.7.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

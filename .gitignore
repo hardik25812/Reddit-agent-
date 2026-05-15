@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.env
+data/drafts/*.json
+data/posted/*.jsonl
+data/feedback/*.json
+data/rate-limit.json
+*.log
