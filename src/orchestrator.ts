@@ -137,12 +137,12 @@ async function main(): Promise<void> {
       break;
 
     case 'start': {
-      const PIPELINE_INTERVAL_MS = 4 * 60 * 60 * 1000; // 4 hours
+      const PIPELINE_INTERVAL_MS = 3 * 60 * 60 * 1000; // 3 hours
       console.log('[start] Starting Telegram listener...');
       startListener();
       console.log('[start] Running initial pipeline...');
       await runPipeline();
-      console.log(`[start] Pipeline will run again every 4 hours`);
+      console.log(`[start] Pipeline will run again every 3 hours`);
       setInterval(async () => {
         console.log(`[start] Scheduled pipeline run at ${new Date().toISOString()}`);
         await runPipeline().catch((err) =>
